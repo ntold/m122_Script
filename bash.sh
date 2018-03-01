@@ -54,7 +54,7 @@ function Start(){
 function StartEingabe(){
 	echo -e "${BLUE}Apache Setup Script"
 	echo -e "${GREEN}Operation wählen ${WHITE}[Setup/Git/Löschen]: "
-	read eingabe;
+	read -r eingabe;
 	case $eingabe in
 		Git | git)
 			clear
@@ -89,18 +89,16 @@ function CheckInternet(){
 
 	Print "Internetverbindung wird geprüft"
 
-	wget -q --spider http://google.com
-
-	if [ $? -eq 0 ]; then
+	if ! wget -q --spider http://google.com; then
+		PrintErr "Sie sind offline"
+		PrintErr "Bitte Internetverbindung überprüfen"
+		sleep 3
+		exit 0
+	else
 		PrintSucc "Online!"
 		sleep 1
 		clear
 		StartEingabe
-	else
-	    	PrintErr "Sie sind offline"
-		PrintErr "Bitte Internetverbindung überprüfen"
-		sleep 3
-		exit 0
 	fi
 
 
@@ -110,12 +108,12 @@ function CheckInternet(){
 # welches installiert werden soll. Falls das Programm schon installiert ist, so wird dies ausgegeben und das Script läuft weiter
 function Install(){
 
-	dpkg -s $1 >> /dev/null 2>&1
-	if [ $? -eq 0 ];then
-		PrintErr "$1 Ist bereits installiert"
-	else
+
+	if ! dpkg -s "$1" >> /dev/null 2>&1;then
 		Print "$1 wird installiert"
-		sudo apt-get install $1 -y >> /dev/null
+		sudo apt-get install "$1" -y >> /dev/null
+	else
+		PrintErr "$1 Ist bereits installiert"
 	fi
 }
 
@@ -124,12 +122,11 @@ function Install(){
 # aufgerufen.
 function InstallCheck(){
 
-	dpkg -s $1 >> /dev/null 2>&1
-	if [ $? -eq 0 ];then
-		PrintSucc "Installation von $1 erfolgreich Abgeschlossen"
-	else
+	if ! dpkg -s "$1" >> /dev/null 2>&1;then
 		PrintErr "Installation Fehlgeschlafen. Neu Versuch"
-		Install $1
+		Install "$1"
+	else
+		PrintSucc "Installation von $1 erfolgreich Abgeschlossen"
 	fi
 }
 
@@ -145,7 +142,7 @@ function InstallApache(){
 
 	#hostname -I
 
-	sudo systemctl enable apache2 >> /tmp/logfilegit.log 2>&1
+	sudo systemctl enable apache2 >> /dev/null 2>&1
 
 	Firewall
 }
@@ -158,12 +155,14 @@ function Firewall(){
 	Install ufw
 	InstallCheck ufw
 	Print "Firewall wird konfiguriert"
-	sudo ufw allow 'Apache Full' >> /dev/null		# Port von Apache erlauben
-   	sudo ufw default deny incoming >> /dev/null		# Alles was reinkommt, wird blockiert
-   	sudo ufw default allow outgoing >> /dev/null	# Alles was rausgeht wird erlaubt
-	sudo ufw allow ssh >> /dev/null					# Hier wird der Port für SSH freigegeben (futuer proof)
-	sudo ufw allow 443 >> /dev/null					# Hier wird der Standart https Port freigegeben
-	sudo ufw enable	>> /dev/null					# Am Schluss wird noch die Firewall aktiviert.
+	{
+		sudo ufw allow 'Apache Full' 		# Port von Apache erlauben
+	   	sudo ufw default deny incoming 		# Alles was reinkommt, wird blockiert
+	   	sudo ufw default allow outgoing 	# Alles was rausgeht wird erlaubt
+		sudo ufw allow ssh 					# Hier wird der Port für SSH freigegeben (futuer proof)
+		sudo ufw allow 443 					# Hier wird der Standart https Port freigegeben
+		sudo ufw enable						# Am Schluss wird noch die Firewall aktiviert.
+	} >> /dev/null
 	PrintSucc "Erfolgreich konfiguriert"
 	sleep 4
 	clear
@@ -179,7 +178,7 @@ function Firewall(){
 function GithubSite(){
 
 	echo -e "${GREEN}Bitte gegen Sie eine ${BLUE}Github-Clone-URL ${GREEN}ein:${WHITE} "
-	read -p "" githubsite
+	read -p -r "" githubsite
 
 	if [[ $githubsite = *"github"* ]]; then
 		Install git
@@ -190,9 +189,9 @@ function GithubSite(){
 		else
 			mkdir /tmp_gitsite
 		fi
-		cd /tmp_gitsite
+		cd /tmp_gitsite || exit
 		Print "Seite wird heruntergeladen"
-		git clone $githubsite >> /tmp/logfilegit.log 2>&1
+		git clone "$githubsite" >> /tmp/logfilegit.log 2>&1
 		PrintSucc "Seite wurde erfolgreich heruntergeladen"
 		InstallApache
 		SiteInApache
@@ -216,7 +215,7 @@ function SiteInApache(){
 function OpenSite(){
 
 	echo -e "${GREEN}Wollen Sie die Site mit dem Browser öffnen?${WHITE}"
-	read eingabe;
+	read -r eingabe;
 	case $eingabe in
 		Ja | ja | j | J | aaah | Gerne | gerne)
 			x-www-browser http://localhost
@@ -235,7 +234,7 @@ function OpenSite(){
 function DeleteThis(){
 
 	echo -e "${GREEN}Sind Sie sicher, dass Sie den Webserver ${RED}deinstallieren ${GREEN} wollen?${WHITE}"
-	read Deleingabe;
+	read -r Deleingabe;
 	case $Deleingabe in
 		Ja | ja | j | J | aaah | Gerne | gerne)
 			clear
@@ -267,12 +266,12 @@ function DeleteThis(){
 # wird das Programm übersprungen und das nächste wird deinstalliert.
 function Uninstall(){
 
-	dpkg -s $1 >> /dev/null 2>&1
-	if [ $? -eq 0 ];then
-		apt-get purge $1 -y >> /dev/null
-		Print "$1 wird deinstalliert"
-	else
+	#dpkg -s "$1" >> /dev/null 2>&1
+	if ! dpkg -s "$1" >> /dev/null 2>&1 ;then
 		PrintErr "Ist nicht installiert. Deinstallation von $1 wird übersprungen"
+	else
+		apt-get purge "$1" -y >> /dev/null
+		Print "$1 wird deinstalliert"
 	fi
 
 }
@@ -285,7 +284,7 @@ function Uninstall(){
 # Ebenso wird noch die Funktion 'TrippleDot' aufgerufen.
 function Print(){
 
-	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	DATE=$(date '+%Y-%m-%d %H:%M:%S')
 	echo -e -n "${WHITE}${DATE} ${GREEN} $1 ${WHITE}"
 	TrippleDot
 	echo ""
@@ -297,7 +296,7 @@ function Print(){
 # Es greitf ebenso noch auf Varibalen der Farbe zu. Hier wird der Text Blau ausgegeben
 function PrintSucc(){
 
-	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	DATE=$(date '+%Y-%m-%d %H:%M:%S')
 	echo -e "${WHITE}${DATE} ${BLUE} $1 ${WHITE}"
 
 }
@@ -307,7 +306,7 @@ function PrintSucc(){
 # Es greitf ebenso noch auf Varibalen der Farbe zu. Hier wird der Text Rot ausgegeben
 function PrintErr(){
 
-	DATE=`date '+%Y-%m-%d %H:%M:%S'`
+	DATE=$(date '+%Y-%m-%d %H:%M:%S')
 	echo -e "${WHITE}${DATE} ${RED} $1 ${WHITE}"
 
 }

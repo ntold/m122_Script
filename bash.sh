@@ -107,7 +107,7 @@ function CheckInternet(){
 }
 
 # Diese FUnktion wird immer mit einem Parameter aufgerufen. Sie bekommt den Namen eines Programms
-# welches installiert werden soll. Falls das Programm schon installiert ist, so wird dies ausgegeben und das Script öäuft weiter
+# welches installiert werden soll. Falls das Programm schon installiert ist, so wird dies ausgegeben und das Script läuft weiter
 function Install(){
 
 	dpkg -s $1 >> /dev/null 2>&1
@@ -119,6 +119,9 @@ function Install(){
 	fi
 }
 
+# Diese Funktion wird nach jeder Installation aufgerufen. Sie überprüft nach einer Installation von einem Programm nochmal
+# ob das Programm wirklich intstalliert wurde. Falls nicht, wird die Funtkion 'Install' mit dem Parameter des Programmnames nochmal
+# aufgerufen.
 function InstallCheck(){
 
 	dpkg -s $1 >> /dev/null 2>&1
@@ -130,7 +133,11 @@ function InstallCheck(){
 	fi
 }
 
-#Funktionen der Installation
+# Funktionen der Installation
+
+# In dieser Funktion werden die Funktionen 'Install' und 'InstallCheck' mit dem Parameter 'apache2' aufgerufen
+# Ebenso wird der Autostart von apache2 aktiviert
+# Am Ende wird noch die Funktio 'Firewall' aufgerufen
 function InstallApache(){
 
 	Install apache2
@@ -143,17 +150,20 @@ function InstallApache(){
 	Firewall
 }
 
+# In dieser Funktion wird auch 'Install' und 'InstallCheck' mit dem Parameter 'ufw' (<-- Firewall tool) aufgerufen.
+# Danach wird die Firewall konfiguriert
+# Am schluss wird die Funktion 'OpenSite' aufgerufen
 function Firewall(){
 
 	Install ufw
 	InstallCheck ufw
 	Print "Firewall wird konfiguriert"
-	sudo ufw allow 'Apache Full' >> /dev/null
-   	sudo ufw default deny incoming >> /dev/null
-   	sudo ufw default allow outgoing >> /dev/null
-	sudo ufw allow ssh >> /dev/null
-	sudo ufw allow 443 >> /dev/null
-	sudo ufw enable	>> /dev/null
+	sudo ufw allow 'Apache Full' >> /dev/null		# Port von Apache erlauben
+   	sudo ufw default deny incoming >> /dev/null		# Alles was reinkommt, wird blockiert
+   	sudo ufw default allow outgoing >> /dev/null	# Alles was rausgeht wird erlaubt
+	sudo ufw allow ssh >> /dev/null					# Hier wird der Port für SSH freigegeben (futuer proof)
+	sudo ufw allow 443 >> /dev/null					# Hier wird der Standart https Port freigegeben
+	sudo ufw enable	>> /dev/null					# Am Schluss wird noch die Firewall aktiviert.
 	PrintSucc "Erfolgreich konfiguriert"
 	sleep 4
 	clear
@@ -161,9 +171,11 @@ function Firewall(){
 	OpenSite
 }
 
-
-#Beachte mich nicht
-#Funktionen der Github Seite
+# In dieser Funktion wird die Github Clone URL in eine Variabel gespeichert und danach überprüft,
+# ob dieser Validiert. Falls nicht wird der User nochmal aufgefordert, einen Link einzugeben.
+# Falls der Link Validiert wird 'git' installiert, mit der Funtkion Install und danach noch InstallCheck ('git' wird als Parameter übergeben)
+# Falls es schon eine githubsite vorhanden ist, wird diese gelöscht.
+# Am Ende werden noch die Funtkion 'InstallApache' und 'SiteInApache' aufgerufen
 function GithubSite(){
 
 	echo -e "${GREEN}Bitte gegen Sie eine ${BLUE}Github-Clone-URL ${GREEN}ein:${WHITE} "
@@ -191,6 +203,9 @@ function GithubSite(){
 	fi
 }
 
+# In dieser Funktion wird die vorhin heruntergeladene githubsite auf den Apacheserver gezogen.
+# Die heruntergeladene Seite wird in "html" benannt, dass man sie anschliesend in das 'var/www/' Verzeichnis
+# kopieren kann. Anschliesend wird noch das alte Verzeichnis '/tmp_gitsite' gelöscht, da dieses nicht mehr von nöten ist.
 function SiteInApache(){
 
 	mv /tmp_gitsite/* /tmp_gitsite/html
@@ -206,10 +221,17 @@ function OpenSite(){
 		Ja | ja | j | J | aaah | Gerne | gerne)
 			x-www-browser http://localhost
 		;;
+		*)
+			exit
+		;;
 	esac
 }
 
 #Funktionen des Löschvorgangs
+
+# Diese Funktion hat die Aufgabe, alles zu löschen, was mit dem Script insalliert worden ist.
+# Als erstes wird gefragt, ob man alles wirklich deinstallieren will. Falls nicht, wird die Funktion des "Hauptmenüs" --> "StartEingabe" aufgerufen
+# Es ruft die Funktion 'Unintall' auf mit dem Namen des Programmes (Parameter).
 function DeleteThis(){
 
 	echo -e "${GREEN}Sind Sie sicher, dass Sie den Webserver ${RED}deinstallieren ${GREEN} wollen?${WHITE}"
@@ -226,10 +248,12 @@ function DeleteThis(){
 			PrintSucc "Deinstallation abgeschlossen"
 			sleep 3
 			clear
+			exit 0
 		;;
 		Nein | nein | n | N)
 			Print "Vorgang wird abgebrochen. Kehre zurück zum Hauptmenü"
 			echo ""
+			StartEingabe
 		;;
 		*)
 
@@ -237,6 +261,10 @@ function DeleteThis(){
 	esac
 }
 
+# Hier findet die Deinstallation von den aufgerufen	Programmen statt.
+# Es erwartet einen Paramter, der den Namen des Programmes hat, welches deinstalliert werden soll.
+# Danach überpüft es ob das Programm schon deinstalliert ist oder nicht. Falls es schon deinstalliert ist, so
+# wird das Programm übersprungen und das nächste wird deinstalliert.
 function Uninstall(){
 
 	dpkg -s $1 >> /dev/null 2>&1
@@ -250,6 +278,11 @@ function Uninstall(){
 }
 
 #Allgemeine Funktionen
+
+# Funktion, welche einen Parameter erwertet, der den Text beihnhaltet.
+# Dieser Paramter wird dann ausgegeben, mit dem entsprechendem Datum und Zeit.
+# Es greitf ebenso noch auf Varibalen der Farbe zu. Hier wird der Text Grün ausgegeben
+# Ebenso wird noch die Funktion 'TrippleDot' aufgerufen.
 function Print(){
 
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
@@ -259,6 +292,9 @@ function Print(){
 
 }
 
+# Funktion, welche einen Parameter erwertet, der den Text beihnhaltet.
+# Dieser Paramter wird dann ausgegeben, mit dem entsprechendem Datum und Zeit.
+# Es greitf ebenso noch auf Varibalen der Farbe zu. Hier wird der Text Blau ausgegeben
 function PrintSucc(){
 
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
@@ -266,6 +302,9 @@ function PrintSucc(){
 
 }
 
+# Funktion, welche einen Parameter erwertet, der den Text beihnhaltet.
+# Dieser Paramter wird dann ausgegeben, mit dem entsprechendem Datum und Zeit.
+# Es greitf ebenso noch auf Varibalen der Farbe zu. Hier wird der Text Rot ausgegeben
 function PrintErr(){
 
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
@@ -273,6 +312,7 @@ function PrintErr(){
 
 }
 
+# Diese Funktion gibt einfach nur 3 Punkte nacheinander in der Farbe Grün aus.
 function TrippleDot(){
 
 	for ((i=1; i<=3; i=i+1));do
@@ -282,5 +322,5 @@ function TrippleDot(){
 	done
 }
 
-
+# Aufruf von der Funktion 'Start'
 Start

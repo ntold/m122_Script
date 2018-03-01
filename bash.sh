@@ -171,7 +171,7 @@ function OpenSite(){
 	echo -e "${GREEN}Wollen Sie die Site mit dem Browser öffnen?${WHITE}"
 	read eingabe;
 	case $eingabe in
-		Ja | ja | Gerne | gerne) 
+		"Ja" | "ja" | "Gerne" | "gerne") 
 			x-www-browser http://localhost
 		;;
 	esac
@@ -183,7 +183,7 @@ function DeleteThis(){
 	echo -e "${GREEN}Sind Sie sicher, dass Sie den Webserver ${RED}deinstallieren ${GREEN} wollen?${WHITE}" 
 	read Deleingabe;
 	case $Deleingabe in	
-		Ja | ja | j | J) 
+		"Ja" | "ja" | "j" | "J") 
 			clear		
 			Print "Löschvorgang beginnt"		
 			Uninstall apache2
@@ -195,7 +195,7 @@ function DeleteThis(){
 			sleep 3
 			clear
 		;;
-		Nein | nein | n | N)
+		"Nein" | "nein" | "n" | "N")
 			Print "Vorgang wird abgebrochen. Kehre zurück zum Hauptmenü"
 			echo ""
 		;;

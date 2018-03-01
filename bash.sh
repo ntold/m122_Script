@@ -1,43 +1,67 @@
 #!/bin/bash
 
-#===========================================================================#
+#===============================================================================#
 #Aufruf: 	sudo ./bash.sh						    #
-#---------------------------------------------------------------------------#
-#Beschreibung: 	Ein Bash Script welche einen Apache-Server einrichtet	    #
-#---------------------------------------------------------------------------#
-#Autor: 	Nico Berchtold						    #
-#---------------------------------------------------------------------------#
-#Verison: 	1.0							    #
-#---------------------------------------------------------------------------#
-#Datum: 	22. Januar 2018						    #
-#===========================================================================#
+#-------------------------------------------------------------------------------#
+#Beschreibung: 	Dieses Bashscript hat folgende Funktionen:						#
+#	    		- Bei der Option "Setup" wird ein apache2 Webserver installiert	#
+#				und eine Firewall heruntergeladen. Diese Firewall wird			#
+#				anschliesend noch Konfiguriert. Es wird der "https"-Port		#
+#				(443) freigegeben und der "ssh"-Port. Ebenso wird noch alles	#
+#				was zum Webserver kommt blockiert.								#
+#				- Bei der Option "Git" wird man aufgefordert einen "https"		#
+#				Clone Link von Github einzugeben. Dieses Respository wird		#
+#				anschliesend in das "/tmp_gitsite" Verzeichnis					#
+#				geklont. Dieses Verzeichnis wird anschliesend in das			#
+#				"/var/www/html" Verzeichnis kopiert, so dass auf dem			#
+#				Webserver die von Ihnen gewünsche Seite angezeigt wird.			#
+#				Das vorhin erstellte Verzeichnis wird im nachhinein wieder		#
+#				gelöscht.														#
+#				- Bei der Option "Löschen" wird alles gelöscht, was im			#
+#				Script erstellt wurde (ink. Verzeichnis).						#
+#------------------------------------------------------------------------------	#
+#Autor: 	Nico Berchtold						    							#
+#------------------------------------------------------------------------------	#
+#Verison: 	1.0 																#
+#-------------------------------------------------------------------------------#
+#Datum: 	22. Januar 2018														#
+#===============================================================================#
 
 #Variablen
+
+#In diesem Abschnitt werden alle Variablen definiert, welche ich für die Farbige
+#Ausgabe haben will
 RED='\e[31m'
 WHITE='\e[39m'
 GREEN='\e[32m'
-BLUE='\e[36m' 
+BLUE='\e[36m'
 
 
 #Funktionen
 
+#Diese Funktion hat nur die Aufgaben, die "CheckInternet" Funktion aufzurufen
+#Die "Start" Funktion wird ganz am Ende des Scriptes aufgerufen. Damit
+#alle anderen Funktionen einmal "durchgelaufen" sind. Dies hat den Vorteil,
+#dass jede Funktion aufgerufen werden kann, ohne eine bestimmte Reihenfolge einzuhalten.
 function Start(){
 	clear
 	CheckInternet
 }
 
 
-function GitEingabe(){
-	echo -e "${BLUE}Apache Setup Script"	
-	echo -e "${GREEN}Operation wählen ${WHITE}[Setup/Git/Löschen]: "	
+#In dieser Funktion wird die Eingabe "eingabe" vom User eingelesen. Diese Eingabe wird in
+#einer "Case" Funktion ausgewertet. Je nach Eingabe werden hier andere Funktionen aufgerufen
+function StartEingabe(){
+	echo -e "${BLUE}Apache Setup Script"
+	echo -e "${GREEN}Operation wählen ${WHITE}[Setup/Git/Löschen]: "
 	read eingabe;
 	case $eingabe in
 		Git | git)
-			clear			
+			clear
 			GithubSite
 		;;
 		Setup | setup)
-			clear			
+			clear
 			InstallApache
 		;;
 		Löschen | löschen)
@@ -45,14 +69,21 @@ function GitEingabe(){
 			DeleteThis
 		;;
 		*)
+			#Wenn die Eingabe nicht der Norm entspricht, so wird dies gesagt heruntergeladen
+			#die "StartEingabe" Funktion nochmal aufgerufen.
 			clear
-			echo -e "${RED}Falsche Eingabe" 		
+			echo -e "${RED}Falsche Eingabe"
 			sleep 1
 			clear
-			GitEingabe
+			StartEingabe
 		;;
 	esac
 }
+
+
+# In dieser Funktion wird nur geprüft, ob der Client Internetverbindung hat. Wenn ja, dann
+# wird das Script normal ausgegeführt, sprich "StartEingabe" aufgerufen Falls nicht, wird der User aufgefordert seine
+# Internetverbindung zu überprfen.
 
 function CheckInternet(){
 
@@ -64,18 +95,19 @@ function CheckInternet(){
 		PrintSucc "Online!"
 		sleep 1
 		clear
-		GitEingabe
+		StartEingabe
 	else
 	    	PrintErr "Sie sind offline"
 		PrintErr "Bitte Internetverbindung überprüfen"
 		sleep 3
-		exit 0		
+		exit 0
 	fi
 
 
 }
 
-
+# Diese FUnktion wird immer mit einem Parameter aufgerufen. Sie bekommt den Namen eines Programms
+# welches installiert werden soll. Falls das Programm schon installiert ist, so wird dies ausgegeben und das Script öäuft weiter
 function Install(){
 
 	dpkg -s $1 >> /dev/null 2>&1
@@ -93,15 +125,15 @@ function InstallCheck(){
 	if [ $? -eq 0 ];then
 		PrintSucc "Installation von $1 erfolgreich Abgeschlossen"
 	else
-		PrintErr "Installation Fehlgeschlafen. Neu Versuch"		
-		Install $1		
+		PrintErr "Installation Fehlgeschlafen. Neu Versuch"
+		Install $1
 	fi
-}	
+}
 
 #Funktionen der Installation
 function InstallApache(){
 
-	Install apache2	
+	Install apache2
 	InstallCheck apache2
 
 	#hostname -I
@@ -133,11 +165,11 @@ function Firewall(){
 #Beachte mich nicht
 #Funktionen der Github Seite
 function GithubSite(){
-	
+
 	echo -e "${GREEN}Bitte gegen Sie eine ${BLUE}Github-Clone-URL ${GREEN}ein:${WHITE} "
 	read -p "" githubsite
 
-	if [[ $githubsite = *"github"* ]]; then		
+	if [[ $githubsite = *"github"* ]]; then
 		Install git
 		InstallCheck git
 		if [ -d /tmp_gitsite ]; then
@@ -145,33 +177,33 @@ function GithubSite(){
 			Print "Vorhandene Seite wird gelöscht"
 		else
 			mkdir /tmp_gitsite
-		fi	
-		cd /tmp_gitsite	 
-		Print "Seite wird heruntergeladen"		
+		fi
+		cd /tmp_gitsite
+		Print "Seite wird heruntergeladen"
 		git clone $githubsite >> /tmp/logfilegit.log 2>&1
 		PrintSucc "Seite wurde erfolgreich heruntergeladen"
 		InstallApache
 		SiteInApache
-	else 
-		clear		
-		echo -e "${RED}Ungültiger Github-Link${WHITE}" 	
+	else
+		clear
+		echo -e "${RED}Ungültiger Github-Link${WHITE}"
 		GithubSite
 	fi
 }
 
 function SiteInApache(){
-	
+
 	mv /tmp_gitsite/* /tmp_gitsite/html
 	yes | sudo cp -rf /tmp_gitsite/* /var/www/ >> /dev/null
 	rm -rf /tmp_gitsite
 }
 
 function OpenSite(){
-	
+
 	echo -e "${GREEN}Wollen Sie die Site mit dem Browser öffnen?${WHITE}"
 	read eingabe;
 	case $eingabe in
-		"Ja" | "ja" | "Gerne" | "gerne") 
+		Ja | ja | j | J | aaah | Gerne | gerne)
 			x-www-browser http://localhost
 		;;
 	esac
@@ -180,14 +212,14 @@ function OpenSite(){
 #Funktionen des Löschvorgangs
 function DeleteThis(){
 
-	echo -e "${GREEN}Sind Sie sicher, dass Sie den Webserver ${RED}deinstallieren ${GREEN} wollen?${WHITE}" 
+	echo -e "${GREEN}Sind Sie sicher, dass Sie den Webserver ${RED}deinstallieren ${GREEN} wollen?${WHITE}"
 	read Deleingabe;
-	case $Deleingabe in	
-		"Ja" | "ja" | "j" | "J") 
-			clear		
-			Print "Löschvorgang beginnt"		
+	case $Deleingabe in
+		Ja | ja | j | J | aaah | Gerne | gerne)
+			clear
+			Print "Löschvorgang beginnt"
 			Uninstall apache2
-			[ -d /var/www/html ] && rm -r /var/www/* 
+			[ -d /var/www/html ] && rm -r /var/www/*
 			Uninstall ufw
 			Uninstall git
 			[[ -d /tmp_gitsite ]] && rm -rf /tmp_gitsite &
@@ -195,13 +227,13 @@ function DeleteThis(){
 			sleep 3
 			clear
 		;;
-		"Nein" | "nein" | "n" | "N")
+		Nein | nein | n | N)
 			Print "Vorgang wird abgebrochen. Kehre zurück zum Hauptmenü"
 			echo ""
 		;;
 		*)
-			
-			
+
+
 	esac
 }
 
@@ -235,7 +267,7 @@ function PrintSucc(){
 }
 
 function PrintErr(){
-	
+
 	DATE=`date '+%Y-%m-%d %H:%M:%S'`
 	echo -e "${WHITE}${DATE} ${RED} $1 ${WHITE}"
 
@@ -244,7 +276,7 @@ function PrintErr(){
 function TrippleDot(){
 
 	for ((i=1; i<=3; i=i+1));do
-		sleep 0.3s		
+		sleep 0.3s
 		echo -e -n "${GREEN}."
 		sleep 0.5s
 	done
@@ -252,7 +284,3 @@ function TrippleDot(){
 
 
 Start
-
-
-
-

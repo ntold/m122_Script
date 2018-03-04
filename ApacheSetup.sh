@@ -1,31 +1,34 @@
 #!/bin/bash
 
-#===============================================================================#
-#Aufruf: 	sudo ./bash.sh						    #
-#-------------------------------------------------------------------------------#
-#Beschreibung: 	Dieses Bashscript hat folgende Funktionen:						#
+#=======================================================================================#
+#Aufruf: 	sudo ./ApacheSetup.sh							#
+#---------------------------------------------------------------------------------------#
+#Beschreibung: 	Dieses Bashscript hat folgende Funktionen:				#
 #	    		- Bei der Option "Setup" wird ein apache2 Webserver installiert	#
-#				und eine Firewall heruntergeladen. Diese Firewall wird			#
-#				anschliesend noch Konfiguriert. Es wird der "https"-Port		#
-#				(443) freigegeben und der "ssh"-Port. Ebenso wird noch alles	#
-#				was zum Webserver kommt blockiert.								#
-#				- Bei der Option "Git" wird man aufgefordert einen "https"		#
-#				Clone Link von Github einzugeben. Dieses Respository wird		#
-#				anschliesend in das "/tmp_gitsite" Verzeichnis					#
-#				geklont. Dieses Verzeichnis wird anschliesend in das			#
-#				"/var/www/html" Verzeichnis kopiert, so dass auf dem			#
-#				Webserver die von Ihnen gewünsche Seite angezeigt wird.			#
-#				Das vorhin erstellte Verzeichnis wird im nachhinein wieder		#
-#				gelöscht.														#
-#				- Bei der Option "Löschen" wird alles gelöscht, was im			#
-#				Script erstellt wurde (ink. Verzeichnis).						#
-#------------------------------------------------------------------------------	#
-#Autor: 	Nico Berchtold						    							#
-#------------------------------------------------------------------------------	#
-#Verison: 	1.0 																#
-#-------------------------------------------------------------------------------#
-#Datum: 	22. Januar 2018														#
-#===============================================================================#
+#			und eine Firewall heruntergeladen. Diese Firewall wird		#
+#			anschliesend noch Konfiguriert. Es wird der "https"-Port	#
+#			(443) freigegeben und der "ssh"-Port. Ebenso wird noch alles	#
+#			was zum Webserver kommt blockiert.				#
+#			- Bei der Option "Git" wird man aufgefordert einen "https"	#
+#			Clone Link von Github einzugeben. Dieses Respository wird	#
+#			anschliesend in das "/tmp_gitsite" Verzeichnis			#
+#			geklont. Dieses Verzeichnis wird anschliesend in das		#
+#			"/var/www/html" Verzeichnis kopiert, so dass auf dem		#
+#			Webserver die von Ihnen gewünsche Seite angezeigt wird.		#
+#			Das vorhin erstellte Verzeichnis wird im nachhinein wieder	#
+#			gelöscht.							#
+#			- Bei der Option "Löschen" wird alles gelöscht, was im		#
+#			Script erstellt wurde (ink. Verzeichnis).			#
+#			ZUSATZ: Falls nach der Installation der Githubseite, es 	#
+#			immernoch die alte Seite anzeigt und nicht die Gewünschte,	#
+#			so reinigen Sie Ihren Cache beim Brower (CTRL + F5)		#
+#---------------------------------------------------------------------------------------#
+#Autor: 	Nico Berchtold						    		#
+#---------------------------------------------------------------------------------------#
+#Verison: 	2.3 									#
+#---------------------------------------------------------------------------------------#
+#Datum: 	4. März 2018 								#
+#=======================================================================================#
 
 #Variablen
 
@@ -82,7 +85,7 @@ function StartEingabe(){
 
 
 # In dieser Funktion wird nur geprüft, ob der Client Internetverbindung hat. Wenn ja, dann
-# wird das Script normal ausgegeführt, sprich "StartEingabe" aufgerufen Falls nicht, wird der User aufgefordert seine
+# wird das Script normal ausgegeführt, sprich "CheckSudo" aufgerufen Falls nicht, wird der User aufgefordert seine
 # Internetverbindung zu überprfen.
 
 function CheckInternet(){
@@ -98,10 +101,25 @@ function CheckInternet(){
 		PrintSucc "Online!"
 		sleep 1
 		clear
-		StartEingabe
+		CheckSudo
 	fi
 
 
+}
+
+# Diese Funktion überprüft, ob das Script als Root ausgeführt wurde.
+# Falls es nicht als Root ausgeführt wird, wird der User aufgefordert, dieses zu machen.
+# Sonst wird die Funktion "StartEingabe" ausgeführt
+
+function CheckSudo(){
+
+	if [[ $(id -u) -ne 0 ]]; then
+		PrintErr "Bitte Script als Root ausführen. (sudo ./ApacheSetup.sh)"
+		sleep 3
+		exit
+	else
+		StartEingabe
+	fi
 }
 
 # Diese FUnktion wird immer mit einem Parameter aufgerufen. Sie bekommt den Namen eines Programms
@@ -139,9 +157,6 @@ function InstallApache(){
 
 	Install apache2
 	InstallCheck apache2
-
-	#hostname -I
-
 	sudo systemctl enable apache2 >> /dev/null 2>&1
 
 	Firewall
@@ -149,7 +164,6 @@ function InstallApache(){
 
 # In dieser Funktion wird auch 'Install' und 'InstallCheck' mit dem Parameter 'ufw' (<-- Firewall tool) aufgerufen.
 # Danach wird die Firewall konfiguriert
-# Am schluss wird die Funktion 'OpenSite' aufgerufen
 function Firewall(){
 
 	Install ufw
@@ -159,15 +173,16 @@ function Firewall(){
 		sudo ufw allow 'Apache Full' 		# Port von Apache erlauben
 	   	sudo ufw default deny incoming 		# Alles was reinkommt, wird blockiert
 	   	sudo ufw default allow outgoing 	# Alles was rausgeht wird erlaubt
-		sudo ufw allow ssh 					# Hier wird der Port für SSH freigegeben (futuer proof)
-		sudo ufw allow 443 					# Hier wird der Standart https Port freigegeben
-		sudo ufw enable						# Am Schluss wird noch die Firewall aktiviert.
+		sudo ufw allow ssh 			# Hier wird der Port für SSH freigegeben (futuer proof)
+		sudo ufw allow 443 			# Hier wird der Standart https Port freigegeben
+		sudo ufw enable				# Am Schluss wird noch die Firewall aktiviert.
 	} >> /dev/null
 	PrintSucc "Erfolgreich konfiguriert"
 	sleep 4
 	clear
 
-	OpenSite
+	End
+
 }
 
 # In dieser Funktion wird die Github Clone URL in eine Variabel gespeichert und danach überprüft,
@@ -175,10 +190,11 @@ function Firewall(){
 # Falls der Link Validiert wird 'git' installiert, mit der Funtkion Install und danach noch InstallCheck ('git' wird als Parameter übergeben)
 # Falls es schon eine githubsite vorhanden ist, wird diese gelöscht.
 # Am Ende werden noch die Funtkion 'InstallApache' und 'SiteInApache' aufgerufen
+# Als Beispielseite wurde dieser Link verwendet: https://github.com/ntold/Website_m122.git
 function GithubSite(){
 
 	echo -e "${GREEN}Bitte gegen Sie eine ${BLUE}Github-Clone-URL ${GREEN}ein:${WHITE} "
-	read -p -r "" githubsite
+	read -r -p "" githubsite
 
 	if [[ $githubsite = *"github"* ]]; then
 		Install git
@@ -209,21 +225,14 @@ function SiteInApache(){
 
 	mv /tmp_gitsite/* /tmp_gitsite/html
 	yes | sudo cp -rf /tmp_gitsite/* /var/www/ >> /dev/null
-	rm -rf /tmp_gitsite
 }
 
-function OpenSite(){
 
-	echo -e "${GREEN}Wollen Sie die Site mit dem Browser öffnen?${WHITE}"
-	read -r eingabe;
-	case $eingabe in
-		Ja | ja | j | J | aaah | Gerne | gerne)
-			x-www-browser http://localhost
-		;;
-		*)
-			exit
-		;;
-	esac
+# Gibt eine Ausgabe
+function End(){
+
+	PrintSucc "Der Webserver ist nun Online! Sie erreichen ihn unter http://localhost"
+
 }
 
 #Funktionen des Löschvorgangs
@@ -255,7 +264,8 @@ function DeleteThis(){
 			StartEingabe
 		;;
 		*)
-
+			PrintErr "Falsche Eingabe"
+			DeleteThis
 
 	esac
 }
